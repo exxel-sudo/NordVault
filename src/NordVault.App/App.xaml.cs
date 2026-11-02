@@ -39,13 +39,16 @@ public partial class App : Application
             var tabIndex = Array.IndexOf(e.Args, "--preview-tab");
             if(e.Args.Contains("--preview-gate"))window=null;
             Window preview=window is null?new VaultGateWindow(true):window;
+            var dialog=e.Args.Contains("--preview-archive")?new ArchiveWindow(@"C:\Users\Anna\Bilder\Semester 2026",true):e.Args.Contains("--preview-wipe")?(Window)new WipeFreeSpaceWindow(@"F:\",true):null;
             if (tabIndex >= 0 && tabIndex + 1 < e.Args.Length && int.TryParse(e.Args[tabIndex + 1], out var selectedTab) && selectedTab is >= 0 and <= 5&&window is not null)
                 ((System.Windows.Controls.TabControl)window.FindName("MainTabs")).SelectedIndex = selectedTab;
-            var visual = (FrameworkElement)preview.Content;
-            visual.Measure(new Size(1200, 820));
-            visual.Arrange(new Rect(0, 0, 1200, 820));
+            var visual = (FrameworkElement)(dialog??preview).Content;
+            // Small windows size to their content: measure at their own width.
+            var size=dialog is null?new Size(1200,820):new Size(dialog.Width,double.PositiveInfinity);
+            visual.Measure(size);if(dialog is not null)size=new Size(dialog.Width,Math.Ceiling(visual.DesiredSize.Height));
+            visual.Arrange(new Rect(size));
             visual.UpdateLayout();
-            var bitmap = new RenderTargetBitmap(1200, 820, 96, 96, PixelFormats.Pbgra32);
+            var bitmap = new RenderTargetBitmap((int)size.Width, (int)size.Height, 96, 96, PixelFormats.Pbgra32);
             bitmap.Render(visual);
             var encoder = new PngBitmapEncoder();
             encoder.Frames.Add(BitmapFrame.Create(bitmap));

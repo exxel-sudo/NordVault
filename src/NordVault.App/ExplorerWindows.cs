@@ -25,15 +25,18 @@ internal sealed class ArchiveWindow : Window
     private bool _counted;
     private CancellationTokenSource? _cancel;
 
-    public ArchiveWindow(string source)
+    private readonly bool _demo;
+    /// <param name="demo">Screenshots only: invented folder, no disk access.</param>
+    public ArchiveWindow(string source,bool demo=false)
     {
+        _demo=demo;
         _source=Path.TrimEndingDirectorySeparator(Path.GetFullPath(source));
         Title="NordVault · Självuppackande arkiv";Width=640;SizeToContent=SizeToContent.Height;ResizeMode=ResizeMode.NoResize;WindowStartupLocation=WindowStartupLocation.CenterScreen;
         _create.Style=(Style)Application.Current.FindResource("Primary");
         _output=DefaultOutput(_source);
-        var panel=new StackPanel{Margin=new Thickness(26)};
+        var panel=new StackPanel{Margin=new Thickness(26),Background=Brushes.White};
         panel.Children.Add(new TextBlock{Text="Skapa självuppackande arkiv",FontSize=23,FontWeight=FontWeights.SemiBold});
-        panel.Children.Add(new TextBlock{Text=(Directory.Exists(_source)?"Mapp: ":"Fil: ")+_source,TextWrapping=TextWrapping.Wrap,Margin=new Thickness(0,10,0,0),FontWeight=FontWeights.SemiBold});
+        panel.Children.Add(new TextBlock{Text=(demo||Directory.Exists(_source)?"Mapp: ":"Fil: ")+_source,TextWrapping=TextWrapping.Wrap,Margin=new Thickness(0,10,0,0),FontWeight=FontWeights.SemiBold});
         panel.Children.Add(_summary);
         panel.Children.Add(new TextBlock{TextWrapping=TextWrapping.Wrap,Margin=new Thickness(0,0,0,12),Text=
             "Allt krypteras med AES-256 till en .exe-fil. Den som dubbelklickar på filen får ange lösenordet och kan sedan packa upp – på vilken Windows-dator som helst, utan NordVault."});
@@ -66,7 +69,8 @@ internal sealed class ArchiveWindow : Window
             e.Cancel=true;
         };
         Closed+=(_,_)=>{_password.Clear();_repeat.Clear();};
-        Loaded+=async(_,_)=>{_password.Focus();await CountAsync();};
+        Loaded+=async(_,_)=>{_password.Focus();if(!_demo)await CountAsync();};
+        if(demo){_summary.Text="248 filer · 1,3 GB";_counted=true;_password.Password=_repeat.Password=new string('x',20);}
         Check();
     }
 
@@ -105,8 +109,8 @@ internal sealed class ArchiveWindow : Window
         _hint.Text=length==0?"":length<16?$"✗ {length} av minst 16 tecken.":_repeat.Password.Length==0?"Skriv lösenordet igen.":_password.Password!=_repeat.Password?"✗ Lösenorden är inte lika.":"✓ Lösenordet är godkänt.";
         _hint.Foreground=_hint.Text.StartsWith('✓')?Brushes.DarkGreen:Brushes.Firebrick;
         var reader=Path.Combine(AppContext.BaseDirectory,"NordVault.Reader.exe");
-        var ready=_runtime.IsInstalled&&File.Exists(reader)&&FileCryptoPanel.ArchiveTemplateHash() is not null;
-        if(!ready&&_cancel is null)_status.Text="Arkivfunktionen saknas i den här NordVault-mappen (krypteringsmotorn eller läsaren). Installera om NordVault.";
+        var ready=_demo||_runtime.IsInstalled&&File.Exists(reader)&&FileCryptoPanel.ArchiveTemplateHash() is not null;
+        if(!ready&&_cancel is null&&!_demo)_status.Text="Arkivfunktionen saknas i den här NordVault-mappen (krypteringsmotorn eller läsaren). Installera om NordVault.";
         _create.IsEnabled=ready&&_counted&&_cancel is null&&length>=16&&_password.Password==_repeat.Password;
         _change.IsEnabled=_password.IsEnabled=_repeat.IsEnabled=_cancel is null;
     }
@@ -146,13 +150,16 @@ internal sealed class WipeFreeSpaceWindow : Window
     private readonly ProgressBar _progress=new(){Height=10,Maximum=1000,Visibility=Visibility.Collapsed,Margin=new Thickness(0,14,0,0)};
     private readonly Button _start=new(){Content="Starta rensning"},_close=new(){Content="Stäng"};
     private CancellationTokenSource? _cancel;
+    private readonly bool _demo;
 
-    public WipeFreeSpaceWindow(string root)
+    /// <param name="demo">Screenshots only: an invented USB stick instead of the real drive.</param>
+    public WipeFreeSpaceWindow(string root,bool demo=false)
     {
+        _demo=demo;
         _drive=new DriveInfo(Path.GetPathRoot(Path.GetFullPath(root))!);
         Title="NordVault · Rensa ledigt utrymme";Width=640;SizeToContent=SizeToContent.Height;ResizeMode=ResizeMode.NoResize;WindowStartupLocation=WindowStartupLocation.CenterScreen;
         _start.Style=(Style)Application.Current.FindResource("Primary");
-        var panel=new StackPanel{Margin=new Thickness(26)};
+        var panel=new StackPanel{Margin=new Thickness(26),Background=Brushes.White};
         panel.Children.Add(new TextBlock{Text="Rensa ledigt utrymme",FontSize=23,FontWeight=FontWeights.SemiBold});
         panel.Children.Add(_info);
         panel.Children.Add(new TextBlock{TextWrapping=TextWrapping.Wrap,Margin=new Thickness(0,0,0,12),Text=
@@ -179,6 +186,7 @@ internal sealed class WipeFreeSpaceWindow : Window
 
     private void Describe()
     {
+        if(_demo){_info.Text=@"F:\  ""USB · resor"" · USB/flyttbar disk · exFAT · 58,2 GB ledigt av 64,0 GB";_start.IsEnabled=true;return;}
         var refuse=FreeSpaceWiper.Refuse(_drive);
         string what;
         try{what=_drive.IsReady?$"{_drive.RootDirectory.FullName}  {(_drive.VolumeLabel is {Length:>0} label?"\""+label+"\" ":"")}· {(_drive.DriveType==DriveType.Removable?"USB/flyttbar disk":"lokal disk")} · {_drive.DriveFormat} · {ArchiveWindow.Size(_drive.AvailableFreeSpace)} ledigt av {ArchiveWindow.Size(_drive.TotalSize)}":_drive.Name;}
