@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<style>
+  body{font:14px/1.4 "Segoe UI",system-ui,sans-serif;color:#17263E;background:#F3F6F9;margin:0;width:320px}
+  header{background:#16283F;color:#fff;padding:12px 16px;font-weight:600;font-size:16px}
+  main{padding:14px 16px}
+  .m{color:#64748B;font-size:13px;margin:0 0 10px}
+  .login{background:#fff;border:1px solid #D8E0E8;border-radius:8px;padding:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .login div{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .u{color:#64748B;font-size:12px}
+  button{font:600 13px "Segoe UI",system-ui,sans-serif;border-radius:7px;padding:7px 12px;cursor:pointer;border:1px solid #D8E0E8;background:#fff;color:#17263E}
+  button.p{background:#14695B;color:#fff;border-color:#14695B}
+  footer{padding:0 16px 14px;display:flex;gap:8px;flex-wrap:wrap}
+  #search{padding:0 16px 12px}
+  #q{width:100%;box-sizing:border-box;font:14px "Segoe UI",system-ui,sans-serif;padding:8px 10px;border:1px solid #D8E0E8;border-radius:7px;margin-bottom:8px}
+  .link{display:block;width:100%;text-align:left;margin-bottom:6px;font-weight:400}
+  .link b{font-weight:600}
+</style>
+</head>
+<body>
+<header>◈ NordVault</header>
+<main id="main"><p class="m">Ansluter…</p></main>
+<section id="search" hidden>
+  <input id="q" type="search" placeholder="Sök bland dina länkar och bokmärken…" autocomplete="off">
+  <div id="links"></div>
+</section>
+<footer><button id="open">Öppna NordVault</button><button id="forget">Rensa ”Aldrig”-listan</button></footer>
+<script src="popup.js"></script>
+</body>
+</html>

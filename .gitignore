@@ -1,0 +1,20 @@
+**/bin/
+**/obj/
+.build-home/
+.packages/
+dist/
+tools/
+artifacts/
+release/
+Setup-NordVault-*.exe
+SHA256SUMS.txt
+
+# Inte källkod till NordVault: gammal PGP 2.6.3i med egen licens
+legacy/
+pgp263is.tar.gz
+# Lokala hemligheter och verktygsdata
+*.pfx
+*.snk
+.env
+.vs/
+*.user

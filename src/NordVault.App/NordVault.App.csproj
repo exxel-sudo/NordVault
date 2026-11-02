@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>true</UseWPF>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AssemblyName>NordVault</AssemblyName>
+    <Version>0.4.3</Version>
+    <ApplicationIcon>../../assets/NordVault.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\NordVault.Core\NordVault.Core.csproj" />
+    <Content Include="..\..\scripts\BitLockerBackend.ps1" Link="scripts\BitLockerBackend.ps1" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\browser\firefox\**\*" LinkBase="browser\firefox" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="../../artifacts/ArchiveTemplate.sha256" LogicalName="NordVault.ArchiveTemplate.sha256" Condition="Exists('../../artifacts/ArchiveTemplate.sha256')" />
+  </ItemGroup>
+</Project>

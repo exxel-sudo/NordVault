@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+ <PropertyGroup><TargetFramework>net10.0-windows</TargetFramework><OutputType>WinExe</OutputType><UseWPF>true</UseWPF><AssemblyName>NordVault.Setup</AssemblyName><Version>0.4.3</Version><ApplicationIcon>../../assets/NordVault.ico</ApplicationIcon><ApplicationManifest>../NordVault.App/app.manifest</ApplicationManifest></PropertyGroup>
+ <ItemGroup><ProjectReference Include="../NordVault.Core/NordVault.Core.csproj" /><EmbeddedResource Include="../../artifacts/setup-payload.zip" LogicalName="NordVault.Setup.Payload.zip" Condition="Exists('../../artifacts/setup-payload.zip')" /><EmbeddedResource Include="../../artifacts/setup-manifest.json" LogicalName="NordVault.Setup.Manifest.json" Condition="Exists('../../artifacts/setup-manifest.json')" /></ItemGroup>
+ <ItemGroup><EmbeddedResource Include="Resources/legacy-0.3.0.json" LogicalName="NordVault.Setup.Legacy030.json" /></ItemGroup>
+ <ItemGroup><EmbeddedResource Include="Resources/legacy-0.3.1.json" LogicalName="NordVault.Setup.Legacy031.json" /></ItemGroup>
+ <ItemGroup><EmbeddedResource Include="Resources/legacy-0.3.2.json" LogicalName="NordVault.Setup.Legacy032.json" /></ItemGroup>
+ <ItemGroup><EmbeddedResource Include="Resources/legacy-0.4.0.json" LogicalName="NordVault.Setup.Legacy040.json" /></ItemGroup>
+ <ItemGroup><EmbeddedResource Include="Resources/legacy-0.4.1.json" LogicalName="NordVault.Setup.Legacy041.json" /></ItemGroup>
+ <ItemGroup><EmbeddedResource Include="Resources/legacy-0.4.2.json" LogicalName="NordVault.Setup.Legacy042.json" /></ItemGroup>
+</Project>

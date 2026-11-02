@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+ <PropertyGroup><TargetFramework>net10.0-windows</TargetFramework><OutputType>WinExe</OutputType><UseWPF>true</UseWPF><AssemblyName>NordVault.Reader</AssemblyName><Version>0.4.3</Version><ApplicationIcon>../../assets/NordVault.ico</ApplicationIcon><ApplicationManifest>../NordVault.App/app.manifest</ApplicationManifest></PropertyGroup>
+ <ItemGroup><ProjectReference Include="../NordVault.Core/NordVault.Core.csproj" /><EmbeddedResource Include="../../artifacts/gnupg-runtime.zip" LogicalName="NordVault.Reader.GnuPG.zip" Condition="Exists('../../artifacts/gnupg-runtime.zip')" /></ItemGroup>
+</Project>

@@ -1,0 +1,191 @@
+{
+  "Product": "NordVault.Private.v1",
+  "Version": "0.3.0",
+  "Files": [
+    {
+      "Path": "NordVault.exe",
+      "Size": 64944410,
+      "Sha256": "4800845F558BB9BB5F6185663F5803C3897FECD6D10DA921945B2B7DD91DEF26"
+    },
+    {
+      "Path": "NordVault.Reader.exe",
+      "Size": 67816708,
+      "Sha256": "84508DA322A460EF5FA897D3A3BF227FF39A6667837C0ADF59709143A8D077DF"
+    },
+    {
+      "Path": "README.sv.md",
+      "Size": 10546,
+      "Sha256": "60FE4D10CAF9368BC6655BA2C16F30683031B33C28A0C0442ED06825D3E8B0C5"
+    },
+    {
+      "Path": "docs/CRYPTO-REVIEW.sv.md",
+      "Size": 5952,
+      "Sha256": "7A46B251DA65B403800A56F241B5AEB4EEE65161AC752780B0AA3C25FBF0E323"
+    },
+    {
+      "Path": "docs/LEGACY-REVIEW.sv.md",
+      "Size": 12393,
+      "Sha256": "E9A1E1D3D2468D424AC56F0BB6F9461DA30393FD071367C9223A74B5AE36AB49"
+    },
+    {
+      "Path": "docs/PERFORMANCE.sv.md",
+      "Size": 2244,
+      "Sha256": "DFBE11294DF63D234AB3CABD06317F6B0A9EABE21F2E286FDEB04E90EF5892B3"
+    },
+    {
+      "Path": "docs/QUALIFICATION.sv.md",
+      "Size": 8015,
+      "Sha256": "EB44E6167106162125C04C1E9D4FDFF5EECFD52967227BCAE0E6A2A692701447"
+    },
+    {
+      "Path": "docs/SECURITY.sv.md",
+      "Size": 15470,
+      "Sha256": "2EA901C4E142E2481B3CD8A9C329112118B4EA8E0FEFF4BEA385545938FB0454"
+    },
+    {
+      "Path": "docs/SOURCES.sv.md",
+      "Size": 8996,
+      "Sha256": "B7088C26D8CFB85D3D2E16B986996390BC27B6D52406ABB0CC3FED7A04216294"
+    },
+    {
+      "Path": "scripts/BitLockerBackend.ps1",
+      "Size": 34289,
+      "Sha256": "C208880EBEE490F22FA7DDC1DC0DAAED4A79B9B8701777DAFE90B7F2F71C6F46"
+    },
+    {
+      "Path": "scripts/Install-SDelete.ps1",
+      "Size": 2683,
+      "Sha256": "F54394A83DF6E29A19F896B0E6974065BD79D9DF8E62FBCA8718C775B426072D"
+    },
+    {
+      "Path": "tools/SDelete-Eula.txt",
+      "Size": 7487,
+      "Sha256": "6E062AE34ED1B3B3D2B88F0F8E0CF054C310C5056027C22981351628FDDF658A"
+    },
+    {
+      "Path": "tools/sdelete64.exe",
+      "Size": 257048,
+      "Sha256": "A371980F5893F4ECF3B06B6CDE388DC9C6AC2D311B7B5708D61EAFA84C5C0B41"
+    },
+    {
+      "Path": "tools/gnupg/LICENSES.txt",
+      "Size": 57756,
+      "Sha256": "F59664F1BAB476417280D6444788B04DA652EEE8FE9647E28AB45B85E05E95B7"
+    },
+    {
+      "Path": "tools/gnupg/ORIGIN.txt",
+      "Size": 303,
+      "Sha256": "7E9101FB5750D13969F1D45D834BC979221160CD3ABE56B99DFB6A327A8D024E"
+    },
+    {
+      "Path": "tools/gnupg/bin/gpg-agent.exe",
+      "Size": 486440,
+      "Sha256": "4C207A991AA9D874329DAF1442AA371509EE5E1B49642C1D7F8AF279FF0F065F"
+    },
+    {
+      "Path": "tools/gnupg/bin/gpg-connect-agent.exe",
+      "Size": 182824,
+      "Sha256": "78680848C7873865F0CEF94AB625AF7B7560830B4221A0E50196F4B8DC3F7CCA"
+    },
+    {
+      "Path": "tools/gnupg/bin/gpg.exe",
+      "Size": 1416232,
+      "Sha256": "7A334FBD16BA02AF568B30CD66A89C49104B0AF4C3A3556174BFD26CA2295CED"
+    },
+    {
+      "Path": "tools/gnupg/bin/gpgconf.exe",
+      "Size": 209960,
+      "Sha256": "2E384A1DA6D1E76B6096B6DA830B25963BBEAFB85904DD43E5A64C4802946FC5"
+    },
+    {
+      "Path": "tools/gnupg/bin/libassuan-9.dll",
+      "Size": 170632,
+      "Sha256": "479887BEBB8929CC3E9CFFAA4CC7140705FA2DCB57A3A5F3DB90D949BF097052"
+    },
+    {
+      "Path": "tools/gnupg/bin/libgcrypt-20.dll",
+      "Size": 2260552,
+      "Sha256": "46BCB9543235152192093D2AA2794C62A1B7D08B72F078A1DE5D31A773041383"
+    },
+    {
+      "Path": "tools/gnupg/bin/libgpg-error-0.dll",
+      "Size": 258424,
+      "Sha256": "DD0C8CD53FCC7745DA4EE3F3227DC7E2A5257E9F1F7BE490F88D9FF7A9353D2F"
+    },
+    {
+      "Path": "tools/gnupg/bin/libksba-8.dll",
+      "Size": 335432,
+      "Sha256": "3678C55E9C53DFE5233D4A53ED035261D2C63782B75C7356788D4E7CED7D7789"
+    },
+    {
+      "Path": "tools/gnupg/bin/libnpth-0.dll",
+      "Size": 46384,
+      "Sha256": "A8E987548E4FADCA5231D7B680B7E3EA898CE38850FA60CF0C3954E06D2E33EF"
+    },
+    {
+      "Path": "tools/gnupg/bin/libntbtls-0.dll",
+      "Size": 115984,
+      "Sha256": "85784CF5C6DD8E6FFCAAF381CCC7C91BD6D66B46F85908E78BEA42FA410A3B7B"
+    },
+    {
+      "Path": "tools/gnupg/bin/libsqlite3-0.dll",
+      "Size": 1286088,
+      "Sha256": "9C279F1CF6638045D48168A6F27D09270E8458C9AC70BED2B95116C8A56E03D2"
+    },
+    {
+      "Path": "tools/gnupg/bin/pinentry-basic.exe",
+      "Size": 115240,
+      "Sha256": "E498F66104A286544488FB2AC4AEC72CCD1E6DE2C0EC7B7E7AE9FC733C54775A"
+    },
+    {
+      "Path": "tools/gnupg/bin/zlib1.dll",
+      "Size": 145960,
+      "Sha256": "1E91FCC579B66CB731815AF8C4E1AB66CB115AFE85B81F5727BBEB9586D2D034"
+    },
+    {
+      "Path": "tools/gnupg/share/gnupg/distsigkey.gpg",
+      "Size": 4714,
+      "Sha256": "29F3D75BF9BBE132724FDE19B69198C4997540B85B6F04D4AC2EB67D26A59DA1"
+    },
+    {
+      "Path": "tools/gnupg/share/gnupg/help.de.txt",
+      "Size": 9013,
+      "Sha256": "BF3782730DB603EF4BDDBA546330D7D69B211C22213ADC6D3791E2A8802F35FE"
+    },
+    {
+      "Path": "tools/gnupg/share/gnupg/help.fr.txt",
+      "Size": 7797,
+      "Sha256": "ABAD0BBC97849BF71917CA59F579DB0A7CAEA436F523AB592294B4CE80826C4B"
+    },
+    {
+      "Path": "tools/gnupg/share/gnupg/help.txt",
+      "Size": 14466,
+      "Sha256": "B0D6DC6BB2EACF8D8807A1729E63820B72DCA9493D190494CCFDBB7725CCA4CA"
+    },
+    {
+      "Path": "tools/gnupg/share/gnupg/mail-tube.de.txt",
+      "Size": 1604,
+      "Sha256": "1C2AC201816619BB6481CD3933EB8E9767C978F59CBAFBE088FA43353E4E527D"
+    },
+    {
+      "Path": "tools/gnupg/share/gnupg/mail-tube.txt",
+      "Size": 1591,
+      "Sha256": "D04C64998AF317B468DE58A8E8164347E85D6B1785C9A3752DEE5FCDE37FE0C8"
+    },
+    {
+      "Path": "tools/gnupg/share/gnupg/pkgversioninfo.txt",
+      "Size": 952,
+      "Sha256": "BF49F71367D03BEA88AD0A40C1631716CEC037CF76041904C6CCDEB66BF8E2D5"
+    },
+    {
+      "Path": "tools/gnupg/share/gnupg/wks-utils.de.txt",
+      "Size": 2687,
+      "Sha256": "608EF4803F29D8E5BC44CCD2CDDC94014D020E85347FEE2AD6E3383F4CD9BD15"
+    },
+    {
+      "Path": "tools/gnupg/share/gnupg/wks-utils.txt",
+      "Size": 2312,
+      "Sha256": "836DFB4536293D921C5E03D52A525094FDB1303542904B63EBAE8C8989F3092C"
+    }
+  ]
+}
