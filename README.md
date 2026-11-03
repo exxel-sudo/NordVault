@@ -4,7 +4,7 @@
 
 NordVault bygger på beprövade motorer i stället för egen kryptografi: **BitLocker** för hela diskar och **GnuPG 2.5** (AES-256, autentiserad OCB) för filer, valv och arkiv.
 
-> **Status:** privat förhandsversion 0.4.3 för Windows 11 x64. Ingen oberoende säkerhetsrevision har gjorts ännu. Appen och installationsprogrammet är inte kodsignerade.
+> **Status:** privat förhandsversion 0.4.4 för Windows 11 x64. Ingen oberoende säkerhetsrevision har gjorts ännu. Appen och installationsprogrammet är inte kodsignerade.
 
 ![Översikt över diskar och USB](docs/images/01-oversikt.png)
 
@@ -97,6 +97,9 @@ Som "Self-Decrypting Archive" i gamla PGP:
 ### Firefox-tillägget
 
 - Firefox frågar **Spara lösenordet i NordVault?** när du loggar in – du behöver inte Firefox egen lösenordshanterare eller ett Firefox-konto.
+- **Spara utan att låsa upp:** är valvet låst krypteras inloggningen direkt till valvets *brevlåda* med en offentlig nyckel (GnuPG). Bara valvet kan öppna den, och nästa gång du låser upp godkänner du de nya inloggningarna innan de läggs in.
+- Inloggningar i **två steg** (först användarnamn, sedan lösenord) sparas med båda delarna.
+- Rutan visas nere till höger, stängs med ✕ och försvinner efter 20 sekunder, så den skymmer inte till exempel Logga ut.
 - **Fyll i** kräver att du bekräftar i NordVaults eget fönster (eller med Windows Hello). Lösenordet skickas bara till exakt samma webbplats och bara över https.
 - Knappen i verktygsfältet söker bland dina sparade länkar och bokmärken.
 - Tillägget pratar bara med NordVault på den egna datorn via Firefox native messaging. Inget skickas till någon server. Varje start kontrollerar att kopplingen i registret inte har ändrats av något annat program.
@@ -134,6 +137,7 @@ Menyn läggs till för din Windows-användare när NordVault installeras eller s
 - **Öppen källkod är inte en svaghet.** Skyddet bygger på dina lösenord och nycklar, inte på att koden är hemlig.
 - **Valvnyckel i kapslar:** valvets innehåll krypteras med en slumpad 256-bitars nyckel. Den kan låsas upp med huvudlösenordet, en återställningskod eller Windows Hello – varje sätt är en egen krypterad kapsel.
 - **Skydd även när valvet är öppet:** lösenord hålls förseglade i minnet och kräver ny bekräftelse för att visas, kopieras eller fyllas i. Känsliga fönster döljs vid skärmdumpar och skärmdelning.
+- **Brevlådan:** inloggningar som sparas medan valvet är låst krypteras till en offentlig nyckel. Den hemliga nyckeln ligger krypterad i valvet, och byts den offentliga nyckeln ut upptäcks det vid nästa upplåsning.
 - **Inget lämnar datorn** utom läckkontrollens anonyma 5-tecken-förfrågan, och bara när du klickar.
 - Mer detaljer: [docs/SECURITY.sv.md](docs/SECURITY.sv.md) och [docs/CRYPTO-REVIEW.sv.md](docs/CRYPTO-REVIEW.sv.md).
 
@@ -143,7 +147,7 @@ Menyn läggs till för din Windows-användare när NordVault installeras eller s
 
 Installationsfiler publiceras inte här ännu. Bygg från källkod enligt nedan.
 
-Installationsprogrammet (`Setup-NordVault-0.4.3.exe`) kan:
+Installationsprogrammet (`Setup-NordVault-0.4.4.exe`) kan:
 
 - installera för din användare (ingen administratör krävs),
 - installera för alla användare,

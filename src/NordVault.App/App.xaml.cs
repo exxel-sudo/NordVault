@@ -101,6 +101,8 @@ public partial class App : Application
     private async Task<System.Text.Json.Nodes.JsonObject> HandleBrowserAsync(System.Text.Json.Nodes.JsonObject request)
     {
         var type=request["type"]?.GetValue<string>();
+        // Locked behind the startup vault prompt: a save goes straight to the vault's inbox, when it has one.
+        if(type=="save"&&MainWindow is not NordVault.App.MainWindow&&await BrowserInbox.TryQueueAsync(request) is {} queued)return queued;
         // While the startup vault prompt is open there is no main window yet: user-started actions wait for it.
         for(var waited=0;MainWindow is not NordVault.App.MainWindow&&type is "save" or "fill" or "open"&&waited<240;waited++)await Task.Delay(500);
         if(MainWindow is NordVault.App.MainWindow window)return await window.HandleBrowserAsync(request);

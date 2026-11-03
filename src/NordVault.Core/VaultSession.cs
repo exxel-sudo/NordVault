@@ -300,6 +300,116 @@ public sealed class VaultSession : IDisposable
         return existing is null ? "created" : "updated";
     }
 
+    public sealed record InboxKey(byte[] PublicKey, bool Repaired);
+    private static readonly byte[] InboxKeyMagic = "NVIK1"u8.ToArray();
+
+    /// <summary>
+    /// Login inbox (see <see cref="LoginInbox"/>): makes the key pair on the first unlock. The public key is also kept inside the encrypted
+    /// inbox-key.gpg; if inbox.pub in the folder no longer matches, something else replaced it: it is restored and Repaired is set.
+    /// Null on a read-only medium or when the key cannot be read; saving from Firefox then asks to unlock as before.
+    /// </summary>
+    public async Task<InboxKey?> PrepareInboxAsync(CancellationToken cancellation = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this); await _operations.WaitAsync(cancellation);
+        try
+        {
+            var secretPath = LoginInbox.SecretKeyPath(Root); var publicPath = LoginInbox.PublicKeyPath(Root);
+            FileCryptoPaths.AssertNoReparsePoints(secretPath); FileCryptoPaths.AssertNoReparsePoints(publicPath);
+            byte[] trusted;
+            if (File.Exists(secretPath))
+            {
+                using var stored = await _crypto.DecryptMetadataAsync(secretPath, _key, cancellation);
+                trusted = UnpackInboxKey(stored.Memory).PublicKey.ToArray();
+            }
+            else
+            {
+                var (publicKey, secretKey) = await _crypto.CreateKeyPairAsync("NordVault brevlåda", cancellation);
+                using (secretKey)
+                {
+                    var packed = new byte[InboxKeyMagic.Length + 4 + publicKey.Length + secretKey.Memory.Length];
+                    try
+                    {
+                        InboxKeyMagic.CopyTo(packed, 0);
+                        System.Buffers.Binary.BinaryPrimitives.WriteInt32LittleEndian(packed.AsSpan(InboxKeyMagic.Length), publicKey.Length);
+                        publicKey.CopyTo(packed, InboxKeyMagic.Length + 4);
+                        secretKey.Memory.Span.CopyTo(packed.AsSpan(InboxKeyMagic.Length + 4 + publicKey.Length));
+                        await _crypto.EncryptMetadataAsync(packed, secretPath, _key, cancellation);
+                    }
+                    finally { CryptographicOperations.ZeroMemory(packed); }
+                }
+                PortableCipherAccess.Inherit(secretPath);
+                trusted = publicKey;
+            }
+            var current = File.Exists(publicPath) && new FileInfo(publicPath).Length <= LoginInbox.MaximumKeyBytes ? await File.ReadAllBytesAsync(publicPath, cancellation) : null;
+            if (current is not null && current.AsSpan().SequenceEqual(trusted)) return new(trusted, false);
+            var part = Path.Combine(Root, ".nordvault-" + Guid.NewGuid().ToString("N") + ".part");
+            try { await File.WriteAllBytesAsync(part, trusted, cancellation); File.Move(part, publicPath, true); }
+            finally { if (File.Exists(part)) File.Delete(part); }
+            return new(trusted, current is not null);
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidOperationException) { return null; }
+        finally { _operations.Release(); }
+    }
+    private static (ReadOnlyMemory<byte> PublicKey, ReadOnlyMemory<byte> SecretKey) UnpackInboxKey(ReadOnlyMemory<byte> packed)
+    {
+        var header = InboxKeyMagic.Length + 4;
+        if (packed.Length <= header || !packed.Span[..InboxKeyMagic.Length].SequenceEqual(InboxKeyMagic)) throw new IOException("Brevlådans nyckel är skadad.");
+        var length = System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(packed.Span[InboxKeyMagic.Length..]);
+        if (length <= 0 || length >= packed.Length - header) throw new IOException("Brevlådans nyckel är skadad.");
+        return (packed.Slice(header, length), packed[(header + length)..]);
+    }
+
+    /// <summary>Opens the logins Firefox saved while the vault was locked. Files that do not verify are listed as unreadable.</summary>
+    public async Task<InboxContents> ReadInboxAsync(CancellationToken cancellation = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        var files = LoginInbox.Files(Root).Take(LoginInbox.MaximumEntries).ToArray();
+        if (files.Length == 0) return new([], []);
+        if (!File.Exists(LoginInbox.SecretKeyPath(Root))) return new([], files);
+        await _operations.WaitAsync(cancellation);
+        var logins = new List<InboxLogin>(); var unreadable = new List<string>();
+        try
+        {
+            using var stored = await _crypto.DecryptMetadataAsync(LoginInbox.SecretKeyPath(Root), _key, cancellation);
+            var results = await _crypto.DecryptWithKeyAsync(files, UnpackInboxKey(stored.Memory).SecretKey, LoginInbox.MaximumEntryBytes, cancellation);
+            for (var i = 0; i < files.Length; i++)
+                using (var plaintext = results[i])
+                {
+                    if (plaintext is not null && LoginInbox.Parse(files[i], plaintext.Memory.Span) is { } login) logins.Add(login);
+                    else unreadable.Add(files[i]);
+                }
+            return new(logins, unreadable);
+        }
+        catch { foreach (var login in logins) login.Dispose(); throw; }
+        finally { _operations.Release(); }
+    }
+
+    /// <summary>Moves approved inbox logins into the vault, oldest first, and removes their inbox files.</summary>
+    public async Task<int> AcceptInboxAsync(IReadOnlyList<InboxLogin> logins, CancellationToken cancellation = default)
+    {
+        var saved = 0;
+        foreach (var login in logins.OrderBy(l => l.Saved))
+        {
+            if (VaultItemMatcher.Parse(login.Url) is not { } page) continue;
+            await SaveBrowserLoginAsync(page, login.Username, login.Password, cancellation);
+            DiscardInbox([login.File]); saved++;
+        }
+        return saved;
+    }
+
+    public void DiscardInbox(IEnumerable<string> files)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        var folder = Path.GetFullPath(LoginInbox.Folder(Root)) + "\\";
+        foreach (var file in files)
+        {
+            var full = Path.GetFullPath(file);
+            if (!full.StartsWith(folder, StringComparison.OrdinalIgnoreCase) || !full.EndsWith(".gpg", StringComparison.OrdinalIgnoreCase)) continue;
+            FileCryptoPaths.AssertNoReparsePoints(full);
+            if (File.Exists(full)) File.Delete(full);
+        }
+    }
+
     /// <summary>
     /// Reading a stored password in an open session needs the master password again: it must open the password capsule
     /// and give this vault's key. Three misses lock out.

@@ -48,6 +48,14 @@ I en upplåst session är varje lösenord AES-GCM-förseglat i minnet med en slu
 
 Firefox-tillägget pratar bara med native-messaging-värden `se.nordvault.firefox`, som är NordVault.exe startad av Firefox. Värden vidarebefordrar endast till den körande NordVault över en namngiven pipe som bara ditt Windows-konto kan öppna, och appen accepterar bara klienter vars körbara fil är samma NordVault.exe. Webbplatsens ursprung tas från Firefox, inte från sidan. Ett sparat lösenord lämnar appen endast efter att du bekräftat ifyllningen i NordVaults eget fönster, och bara för en sida som matchar postens webbplats. Ifyllda lösenord finns därefter i webbsidans formulär, där sidans eget skript kan läsa dem; fyll därför bara i på sidor du litar på. Tillägget är osignerat i denna förhandsversion.
 
+## Brevlådan i 0.4.4: spara från Firefox när valvet är låst
+
+Vid första upplåsningen låter NordVault GnuPG skapa ett nyckelpar (ed25519 för certifiering, RSA-3072 för kryptering; GnuPG 2.5.24 kan inte exportera och importera ECC-krypteringsnycklar utan att de blir stubbar). Den hemliga nyckeln, tillsammans med en kopia av den offentliga, ligger i `inbox-key.gpg`, krypterad med valvnyckeln. Den offentliga nyckeln ligger okrypterad i `inbox.pub`.
+
+När valvet är låst krypteras en sparad inloggning (webbplats, användarnamn, lösenord, tid) till `inbox.pub` med autentiserad AES-256/OCB och läggs som `inbox\<slump>.gpg`. Ingen lösenfras behövs och inget kan läsas tillbaka utan valvet. Vid upplåsning jämförs `inbox.pub` med kopian i valvet; har den bytts ut återställs den och en varning visas, eftersom något med skrivåtkomst till mappen då har försökt få framtida inloggningar krypterade till sin egen nyckel. Appen använder i första hand den nyckel som kontrollerades vid senaste upplåsningen i samma körning.
+
+Brevlådan är inte signerad: den som kan skriva i valvmappen kan lägga dit påhittade inloggningar. Därför läggs inget in utan att du godkänner listan. Filer som inte går att verifiera tas bort. Högst 200 inloggningar och 16 KiB per post.
+
 ## Valvnyckel och kapslar i 0.4.0
 
 Katalog, `items.gpg` och valvfiler krypteras med valvnyckeln som GnuPG-lösenfras. Nya valv får 64 slumpade hexadecimala tecken (256 bitar). Valv från 0.3.x behåller huvudlösenordet som valvnyckel för bakåtkompatibilitet; deras styrka mot den som har en kopia av valvmappen är därför fortfarande huvudlösenordets.

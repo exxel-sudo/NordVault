@@ -255,6 +255,44 @@ Add("Private links stay in Privat, survive reopening and can move in and out",as
         Expect(h.Private&&h.Notes=="min anteckning"&&vault.Items.Count(i=>i.Private)==3&&!vault.Items.Single(i=>i.Title=="Vanlig").Private,"Privat sparades inte.");
     }
 });
+Add("Firefox inbox saves while locked, opens only with the vault and needs approval",async()=>
+{
+    var root=At("inbox-vault");
+    using(var vault=await VaultSession.CreateAsync(root,runtime,password))
+    {
+        Expect(LoginInbox.ReadPublicKey(root) is null,"Brevlådan fanns före första upplåsningen.");
+        Expect(await vault.PrepareInboxAsync() is {Repaired:false},"Brevlådans nyckel skapades inte.");
+    }
+    var publicKey=LoginInbox.ReadPublicKey(root)!;
+    var page=new Uri("https://login.example.se/steg2");
+    await LoginInbox.AddAsync(root,runtime,publicKey,page,"anna@example.se","Inbox-test-only-1".AsMemory());
+    await Task.Delay(50);
+    await LoginInbox.AddAsync(root,runtime,publicKey,page,"anna@example.se","Inbox-test-only-2".AsMemory());
+    var files=LoginInbox.Files(root);
+    Expect(files.Length==2&&!Encoding.UTF8.GetString(await File.ReadAllBytesAsync(files[0])).Contains("anna"),"Brevlådan sparade fel eller i klartext.");
+    await Reject(async()=>{using var _=await new FileCryptoService(runtime).DecryptMetadataAsync(files[0],password);});
+    await File.WriteAllBytesAsync(Path.Combine(LoginInbox.Folder(root),new string('a',32)+".gpg"),Encoding.UTF8.GetBytes("not gpg"));
+    using(var vault=await VaultSession.OpenAsync(root,runtime,password))
+    {
+        Expect(await vault.PrepareInboxAsync() is {Repaired:false},"Oförändrad nyckel markerades som utbytt.");
+        var inbox=await vault.ReadInboxAsync();
+        Expect(inbox.Logins.Count==2&&inbox.Unreadable.Count==1,"Brevlådan lästes fel.");
+        Expect(inbox.Logins.All(l=>l.Username=="anna@example.se"&&l.Url=="https://login.example.se"),"Användarnamn eller sida tappades.");
+        Expect(await vault.AcceptInboxAsync(inbox.Logins)==2,"Inloggningarna lades inte in.");
+        vault.DiscardInbox(inbox.Unreadable);
+        foreach(var login in inbox.Logins)login.Dispose();
+        var item=vault.Items.Single(i=>i.Kind==VaultItemKind.Login);
+        var secret=await vault.RevealPasswordAsync(item.Id,password);
+        Expect(item.Username=="anna@example.se"&&new string(secret)=="Inbox-test-only-2","Senaste inloggningen vann inte.");
+        Expect(LoginInbox.Files(root).Length==0,"Brevlådan tömdes inte.");
+    }
+    // Something else replaced the public key: detected and restored on the next unlock.
+    var original=await File.ReadAllBytesAsync(LoginInbox.PublicKeyPath(root));
+    await File.WriteAllBytesAsync(LoginInbox.PublicKeyPath(root),Encoding.UTF8.GetBytes("replaced key"));
+    using(var vault=await VaultSession.OpenAsync(root,runtime,password))
+        Expect(await vault.PrepareInboxAsync() is {Repaired:true},"Utbytt nyckel upptäcktes inte.");
+    Expect((await File.ReadAllBytesAsync(LoginInbox.PublicKeyPath(root))).SequenceEqual(original),"Nyckeln återställdes inte.");
+});
 Add("Deleting a vault file removes it from the catalog and disk",async()=>
 {
     var deleteRoot=At("delete-vault");
@@ -502,10 +540,10 @@ if(args.Contains("--published"))
     {
         var manifest=DeploymentService.ReadManifest(await File.ReadAllBytesAsync(Path.Combine(root,"artifacts","setup-manifest.json")));
         var service=new DeploymentService(manifest);var destination=At("full-install");
-        using(var payload=File.OpenRead(Path.Combine(root,"artifacts","setup-payload.zip")))await service.InstallAsync(payload,destination,"Portable",Path.Combine(root,"Setup-NordVault-0.4.3.exe"));
+        using(var payload=File.OpenRead(Path.Combine(root,"artifacts","setup-payload.zip")))await service.InstallAsync(payload,destination,"Portable",Path.Combine(root,"Setup-NordVault-0.4.4.exe"));
         Expect(File.Exists(Path.Combine(destination,"NordVault.Reader.exe")),"Läsaren saknas i verkliga installationen.");
         Directory.CreateDirectory(Path.Combine(destination,"Data"));await File.WriteAllTextAsync(Path.Combine(destination,"Data","keep.gpg"),"cipher fixture");
-        var result=service.Uninstall(destination,Path.Combine(root,"Setup-NordVault-0.4.3.exe"));
+        var result=service.Uninstall(destination,Path.Combine(root,"Setup-NordVault-0.4.4.exe"));
         Expect(result.PreservedFiles==0&&!File.Exists(Path.Combine(destination,"NordVault.exe"))&&File.Exists(Path.Combine(destination,"Data","keep.gpg")),"Full avinstallation ändrade egna data.");
     });
     async Task<(int Exit,JsonDocument Report)> RunReader(string secret,string name)
@@ -554,75 +592,86 @@ if(args.Contains("--published"))
     });
     Add("Published Setup EXE verifies real Windows shortcuts and preserves user data",async()=>
     {
-        using var installerScratch=new PrivateWorkspace(scratch.Path);await RunFixture(Path.Combine(root,"Setup-NordVault-0.4.3.exe"),["--test-install",installerScratch.Path]);
+        using var installerScratch=new PrivateWorkspace(scratch.Path);await RunFixture(Path.Combine(root,"Setup-NordVault-0.4.4.exe"),["--test-install",installerScratch.Path]);
         using var data=JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(installerScratch.Path,"result.json")));
         Expect(data.RootElement.GetProperty("Success").GetBoolean()&&data.RootElement.GetProperty("ShortcutsVerified").GetBoolean()&&data.RootElement.GetProperty("DataPreserved").GetBoolean(),"Setup misslyckades med genvägar eller data.");
     });
     if(File.Exists(Path.Combine(root,"artifacts","legacy-payload-0.3.0.zip")))
-    Add("Real 0.3.0 payload updates to 0.4.3 while retaining vault bytes",async()=>
+    Add("Real 0.3.0 payload updates to 0.4.4 while retaining vault bytes",async()=>
     {
         var oldManifest=DeploymentService.ReadManifest(await File.ReadAllBytesAsync(Path.Combine(root,"src","NordVault.Setup","Resources","legacy-0.3.0.json")));
         var folder=At("legacy-update");var oldSetup=Path.Combine(root,"Setup-NordVault-0.3.0.exe");
         using(var payload=File.OpenRead(Path.Combine(root,"artifacts","legacy-payload-0.3.0.zip")))await new DeploymentService(oldManifest).InstallAsync(payload,folder,"Portable",oldSetup);
         Directory.CreateDirectory(Path.Combine(folder,"Data"));var preserved=Path.Combine(folder,"Data","keep.gpg");await File.WriteAllBytesAsync(preserved,bytes);
         var manifest=DeploymentService.ReadManifest(await File.ReadAllBytesAsync(Path.Combine(root,"artifacts","setup-manifest.json")));
-        using(var payload=File.OpenRead(Path.Combine(root,"artifacts","setup-payload.zip")))await new DeploymentService(manifest).UpdateAsync(payload,folder,"Portable",Path.Combine(root,"Setup-NordVault-0.4.3.exe"),oldManifest,Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(oldSetup))));
-        Expect(DeploymentService.ReadState(folder).Version=="0.4.3"&&(await File.ReadAllBytesAsync(preserved)).SequenceEqual(bytes),"Äldre installation eller valv uppdaterades fel.");
+        using(var payload=File.OpenRead(Path.Combine(root,"artifacts","setup-payload.zip")))await new DeploymentService(manifest).UpdateAsync(payload,folder,"Portable",Path.Combine(root,"Setup-NordVault-0.4.4.exe"),oldManifest,Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(oldSetup))));
+        Expect(DeploymentService.ReadState(folder).Version=="0.4.4"&&(await File.ReadAllBytesAsync(preserved)).SequenceEqual(bytes),"Äldre installation eller valv uppdaterades fel.");
     });
     if(File.Exists(Path.Combine(root,"artifacts","legacy-payload-0.3.1.zip")))
-    Add("Real 0.3.1 payload updates to 0.4.3 while retaining vault bytes",async()=>
+    Add("Real 0.3.1 payload updates to 0.4.4 while retaining vault bytes",async()=>
     {
         var oldManifest=DeploymentService.ReadManifest(await File.ReadAllBytesAsync(Path.Combine(root,"src","NordVault.Setup","Resources","legacy-0.3.1.json")));
         var folder=At("legacy031-update");var oldSetup=Path.Combine(root,"Setup-NordVault-0.3.1.exe");
         using(var payload=File.OpenRead(Path.Combine(root,"artifacts","legacy-payload-0.3.1.zip")))await new DeploymentService(oldManifest).InstallAsync(payload,folder,"Portable",oldSetup);
         Directory.CreateDirectory(Path.Combine(folder,"Data"));var preserved=Path.Combine(folder,"Data","keep.gpg");await File.WriteAllBytesAsync(preserved,bytes);
         var manifest=DeploymentService.ReadManifest(await File.ReadAllBytesAsync(Path.Combine(root,"artifacts","setup-manifest.json")));
-        using(var payload=File.OpenRead(Path.Combine(root,"artifacts","setup-payload.zip")))await new DeploymentService(manifest).UpdateAsync(payload,folder,"Portable",Path.Combine(root,"Setup-NordVault-0.4.3.exe"),oldManifest,Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(oldSetup))));
-        Expect(DeploymentService.ReadState(folder).Version=="0.4.3"&&(await File.ReadAllBytesAsync(preserved)).SequenceEqual(bytes),"0.3.1 eller valv uppdaterades fel.");
+        using(var payload=File.OpenRead(Path.Combine(root,"artifacts","setup-payload.zip")))await new DeploymentService(manifest).UpdateAsync(payload,folder,"Portable",Path.Combine(root,"Setup-NordVault-0.4.4.exe"),oldManifest,Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(oldSetup))));
+        Expect(DeploymentService.ReadState(folder).Version=="0.4.4"&&(await File.ReadAllBytesAsync(preserved)).SequenceEqual(bytes),"0.3.1 eller valv uppdaterades fel.");
     });
     if(File.Exists(Path.Combine(root,"artifacts","legacy-payload-0.3.2.zip")))
-    Add("Real 0.3.2 payload updates to 0.4.3 while retaining vault bytes",async()=>
+    Add("Real 0.3.2 payload updates to 0.4.4 while retaining vault bytes",async()=>
     {
         var oldManifest=DeploymentService.ReadManifest(await File.ReadAllBytesAsync(Path.Combine(root,"src","NordVault.Setup","Resources","legacy-0.3.2.json")));
         var folder=At("legacy032-update");var oldSetup=Path.Combine(root,"Setup-NordVault-0.3.2.exe");
         using(var payload=File.OpenRead(Path.Combine(root,"artifacts","legacy-payload-0.3.2.zip")))await new DeploymentService(oldManifest).InstallAsync(payload,folder,"Portable",oldSetup);
         Directory.CreateDirectory(Path.Combine(folder,"Data"));var preserved=Path.Combine(folder,"Data","keep.gpg");await File.WriteAllBytesAsync(preserved,bytes);
         var manifest=DeploymentService.ReadManifest(await File.ReadAllBytesAsync(Path.Combine(root,"artifacts","setup-manifest.json")));
-        using(var payload=File.OpenRead(Path.Combine(root,"artifacts","setup-payload.zip")))await new DeploymentService(manifest).UpdateAsync(payload,folder,"Portable",Path.Combine(root,"Setup-NordVault-0.4.3.exe"),oldManifest,Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(oldSetup))));
-        Expect(DeploymentService.ReadState(folder).Version=="0.4.3"&&(await File.ReadAllBytesAsync(preserved)).SequenceEqual(bytes),"0.3.2 eller valv uppdaterades fel.");
+        using(var payload=File.OpenRead(Path.Combine(root,"artifacts","setup-payload.zip")))await new DeploymentService(manifest).UpdateAsync(payload,folder,"Portable",Path.Combine(root,"Setup-NordVault-0.4.4.exe"),oldManifest,Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(oldSetup))));
+        Expect(DeploymentService.ReadState(folder).Version=="0.4.4"&&(await File.ReadAllBytesAsync(preserved)).SequenceEqual(bytes),"0.3.2 eller valv uppdaterades fel.");
     });
     if(File.Exists(Path.Combine(root,"artifacts","legacy-payload-0.4.0.zip")))
-    Add("Real 0.4.0 payload updates to 0.4.3 while retaining vault bytes",async()=>
+    Add("Real 0.4.0 payload updates to 0.4.4 while retaining vault bytes",async()=>
     {
         var oldManifest=DeploymentService.ReadManifest(await File.ReadAllBytesAsync(Path.Combine(root,"src","NordVault.Setup","Resources","legacy-0.4.0.json")));
         var folder=At("legacy040-update");var oldSetup=Path.Combine(root,"Setup-NordVault-0.4.0.exe");
         using(var payload=File.OpenRead(Path.Combine(root,"artifacts","legacy-payload-0.4.0.zip")))await new DeploymentService(oldManifest).InstallAsync(payload,folder,"Portable",oldSetup);
         Directory.CreateDirectory(Path.Combine(folder,"Data"));var preserved=Path.Combine(folder,"Data","keep.gpg");await File.WriteAllBytesAsync(preserved,bytes);
         var manifest=DeploymentService.ReadManifest(await File.ReadAllBytesAsync(Path.Combine(root,"artifacts","setup-manifest.json")));
-        using(var payload=File.OpenRead(Path.Combine(root,"artifacts","setup-payload.zip")))await new DeploymentService(manifest).UpdateAsync(payload,folder,"Portable",Path.Combine(root,"Setup-NordVault-0.4.3.exe"),oldManifest,Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(oldSetup))));
-        Expect(DeploymentService.ReadState(folder).Version=="0.4.3"&&(await File.ReadAllBytesAsync(preserved)).SequenceEqual(bytes),"0.4.0 eller valv uppdaterades fel.");
+        using(var payload=File.OpenRead(Path.Combine(root,"artifacts","setup-payload.zip")))await new DeploymentService(manifest).UpdateAsync(payload,folder,"Portable",Path.Combine(root,"Setup-NordVault-0.4.4.exe"),oldManifest,Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(oldSetup))));
+        Expect(DeploymentService.ReadState(folder).Version=="0.4.4"&&(await File.ReadAllBytesAsync(preserved)).SequenceEqual(bytes),"0.4.0 eller valv uppdaterades fel.");
     });
     if(File.Exists(Path.Combine(root,"artifacts","legacy-payload-0.4.1.zip")))
-    Add("Real 0.4.1 payload updates to 0.4.3 while retaining vault bytes",async()=>
+    Add("Real 0.4.1 payload updates to 0.4.4 while retaining vault bytes",async()=>
     {
         var oldManifest=DeploymentService.ReadManifest(await File.ReadAllBytesAsync(Path.Combine(root,"src","NordVault.Setup","Resources","legacy-0.4.1.json")));
         var folder=At("legacy041-update");var oldSetup=Path.Combine(root,"Setup-NordVault-0.4.1.exe");
         using(var payload=File.OpenRead(Path.Combine(root,"artifacts","legacy-payload-0.4.1.zip")))await new DeploymentService(oldManifest).InstallAsync(payload,folder,"Portable",oldSetup);
         Directory.CreateDirectory(Path.Combine(folder,"Data"));var preserved=Path.Combine(folder,"Data","keep.gpg");await File.WriteAllBytesAsync(preserved,bytes);
         var manifest=DeploymentService.ReadManifest(await File.ReadAllBytesAsync(Path.Combine(root,"artifacts","setup-manifest.json")));
-        using(var payload=File.OpenRead(Path.Combine(root,"artifacts","setup-payload.zip")))await new DeploymentService(manifest).UpdateAsync(payload,folder,"Portable",Path.Combine(root,"Setup-NordVault-0.4.3.exe"),oldManifest,Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(oldSetup))));
-        Expect(DeploymentService.ReadState(folder).Version=="0.4.3"&&(await File.ReadAllBytesAsync(preserved)).SequenceEqual(bytes),"0.4.1 eller valv uppdaterades fel.");
+        using(var payload=File.OpenRead(Path.Combine(root,"artifacts","setup-payload.zip")))await new DeploymentService(manifest).UpdateAsync(payload,folder,"Portable",Path.Combine(root,"Setup-NordVault-0.4.4.exe"),oldManifest,Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(oldSetup))));
+        Expect(DeploymentService.ReadState(folder).Version=="0.4.4"&&(await File.ReadAllBytesAsync(preserved)).SequenceEqual(bytes),"0.4.1 eller valv uppdaterades fel.");
     });
     if(File.Exists(Path.Combine(root,"artifacts","legacy-payload-0.4.2.zip")))
-    Add("Real 0.4.2 payload updates to 0.4.3 while retaining vault bytes",async()=>
+    Add("Real 0.4.2 payload updates to 0.4.4 while retaining vault bytes",async()=>
     {
         var oldManifest=DeploymentService.ReadManifest(await File.ReadAllBytesAsync(Path.Combine(root,"src","NordVault.Setup","Resources","legacy-0.4.2.json")));
         var folder=At("legacy042-update");var oldSetup=Path.Combine(root,"Setup-NordVault-0.4.2.exe");
         using(var payload=File.OpenRead(Path.Combine(root,"artifacts","legacy-payload-0.4.2.zip")))await new DeploymentService(oldManifest).InstallAsync(payload,folder,"Portable",oldSetup);
         Directory.CreateDirectory(Path.Combine(folder,"Data"));var preserved=Path.Combine(folder,"Data","keep.gpg");await File.WriteAllBytesAsync(preserved,bytes);
         var manifest=DeploymentService.ReadManifest(await File.ReadAllBytesAsync(Path.Combine(root,"artifacts","setup-manifest.json")));
-        using(var payload=File.OpenRead(Path.Combine(root,"artifacts","setup-payload.zip")))await new DeploymentService(manifest).UpdateAsync(payload,folder,"Portable",Path.Combine(root,"Setup-NordVault-0.4.3.exe"),oldManifest,Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(oldSetup))));
-        Expect(DeploymentService.ReadState(folder).Version=="0.4.3"&&(await File.ReadAllBytesAsync(preserved)).SequenceEqual(bytes),"0.4.2 eller valv uppdaterades fel.");
+        using(var payload=File.OpenRead(Path.Combine(root,"artifacts","setup-payload.zip")))await new DeploymentService(manifest).UpdateAsync(payload,folder,"Portable",Path.Combine(root,"Setup-NordVault-0.4.4.exe"),oldManifest,Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(oldSetup))));
+        Expect(DeploymentService.ReadState(folder).Version=="0.4.4"&&(await File.ReadAllBytesAsync(preserved)).SequenceEqual(bytes),"0.4.2 eller valv uppdaterades fel.");
+    });
+    if(File.Exists(Path.Combine(root,"artifacts","legacy-payload-0.4.3.zip")))
+    Add("Real 0.4.3 payload updates to 0.4.4 while retaining vault bytes",async()=>
+    {
+        var oldManifest=DeploymentService.ReadManifest(await File.ReadAllBytesAsync(Path.Combine(root,"src","NordVault.Setup","Resources","legacy-0.4.3.json")));
+        var folder=At("legacy043-update");var oldSetup=Path.Combine(root,"Setup-NordVault-0.4.3.exe");
+        using(var payload=File.OpenRead(Path.Combine(root,"artifacts","legacy-payload-0.4.3.zip")))await new DeploymentService(oldManifest).InstallAsync(payload,folder,"Portable",oldSetup);
+        Directory.CreateDirectory(Path.Combine(folder,"Data"));var preserved=Path.Combine(folder,"Data","keep.gpg");await File.WriteAllBytesAsync(preserved,bytes);
+        var manifest=DeploymentService.ReadManifest(await File.ReadAllBytesAsync(Path.Combine(root,"artifacts","setup-manifest.json")));
+        using(var payload=File.OpenRead(Path.Combine(root,"artifacts","setup-payload.zip")))await new DeploymentService(manifest).UpdateAsync(payload,folder,"Portable",Path.Combine(root,"Setup-NordVault-0.4.4.exe"),oldManifest,Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(oldSetup))));
+        Expect(DeploymentService.ReadState(folder).Version=="0.4.4"&&(await File.ReadAllBytesAsync(preserved)).SequenceEqual(bytes),"0.4.3 eller valv uppdaterades fel.");
     });
 }
 var failed=0;

@@ -1,4 +1,4 @@
-# NordVault 0.4.3 — privat förhandsversion för Windows 11 x64
+# NordVault 0.4.4 — privat förhandsversion för Windows 11 x64
 
 Svenskt GUI för diskar, USB, lösenordskrypterade filer, ett krypterat personligt valv och självuppackande arkiv. BitLocker sköter volymer och GnuPG 2.5.24 sköter filer. Den historiska PGP-koden ligger separat i `legacy/pgp263i` och används inte som kryptomotor.
 
@@ -6,13 +6,13 @@ Svenskt GUI för diskar, USB, lösenordskrypterade filer, ett krypterat personli
 
 ## Installera eller ta med på USB
 
-Dubbelklicka **Setup-NordVault-0.4.3.exe** i projektets rotmapp. Välj:
+Dubbelklicka **Setup-NordVault-0.4.4.exe** i projektets rotmapp. Välj:
 
 - **Installera på datorn:** standardmappen är `%LOCALAPPDATA%\Programs\NordVault`. Du kan välja annan mapp. En vanlig installation för ditt konto behöver ingen administratör. Skrivbordsgenväg och Startmeny är förvalda, och kan väljas bort. Startmenyn får både NordVault och **Avinstallera NordVault**. Windows Installerade appar får en avinstallationspost.
 - **Installera för alla användare:** standardmappen blir Program Files och Windows begär administratör via UAC.
 - **Packa upp portabel version:** välj en tom mapp på exempelvis USB. Inga registerposter eller genvägar skapas.
 
-Du kan också packa upp `release/NordVault-Portable-0.4.3.zip` till en tom mapp och starta `NordVault.exe`. Kopiera **hela** mappen, inklusive verktyg och senare skapad `Data`, när du flyttar den. `Starta-NordVault.cmd` i projektet öppnar versionen i `release/NordVault-Portable`.
+Du kan också packa upp `release/NordVault-Portable-0.4.4.zip` till en tom mapp och starta `NordVault.exe`. Kopiera **hela** mappen, inklusive verktyg och senare skapad `Data`, när du flyttar den. `Starta-NordVault.cmd` i projektet öppnar versionen i `release/NordVault-Portable`.
 
 .NET-runtime och filmotorn medföljer. Windows x64 krävs; detta är ingen Linux-, Mac- eller ARM-version. Programfilerna är vanliga körbara filer. Dina valvfiler, nyckelfiler och deras namn krypteras med huvudlösenordet; programkoden behöver inte vara hemlig för detta skydd. Appen och installern är **inte Authenticode-signerade**. SHA-256-kontrollsummorna identifierar ett bygge men bevisar inte dess säkerhet eller ursprung på egen hand.
 
@@ -26,7 +26,7 @@ Avinstallera via Windows **Installerade appar**, Startmenyns **NordVault → Avi
 
 Avinstallation tar endast bort kända programfiler med rätt kontrollsummor. Egna filer, ändrade programfiler och `Data` bevaras. ZIP-versionen har ingen installationspost; programfiler kan tas bort manuellt efter att valvet kopierats säkert.
 
-**Uppdatera från 0.3.0, 0.3.1, 0.3.2, 0.4.0, 0.4.1 eller 0.4.2:** stäng först NordVault. Kör Setup 0.4.3 och välj samma installationsmapp och läge. De verifierade lokala versionerna upptäcks och knappen visar **Uppdatera till 0.4.3**. Kända programfiler byts, valv och egna filer behålls, och genvägar skapas enligt valen. Ändrade programfiler eller egna filer som kolliderar med nya programnamn stoppar uppdateringen. Samma 0.4.3-paket kan reparera installationen och genvägarna; ett okänt äldre bygge behöver sin egen avinstallerare eller en ny mapp. Normal felhantering återställer gamla programfiler. Ett process-/strömavbrott under bytet behöver manuell kontroll; eventuell programbackup ligger i en `NV-*`-arbetsmapp bredvid installationen.
+**Uppdatera från 0.3.0, 0.3.1, 0.3.2, 0.4.0, 0.4.1, 0.4.2 eller 0.4.3:** stäng först NordVault. Kör Setup 0.4.4 och välj samma installationsmapp och läge. De verifierade lokala versionerna upptäcks och knappen visar **Uppdatera till 0.4.3**. Kända programfiler byts, valv och egna filer behålls, och genvägar skapas enligt valen. Ändrade programfiler eller egna filer som kolliderar med nya programnamn stoppar uppdateringen. Samma 0.4.3-paket kan reparera installationen och genvägarna; ett okänt äldre bygge behöver sin egen avinstallerare eller en ny mapp. Normal felhantering återställer gamla programfiler. Ett process-/strömavbrott under bytet behöver manuell kontroll; eventuell programbackup ligger i en `NV-*`-arbetsmapp bredvid installationen.
 
 ## Huvudlösenord och mitt valv
 
@@ -82,7 +82,9 @@ Tillägget gör att Firefox frågar **Spara lösenordet i NordVault?** när du l
 
 Ett tillfälligt tillägg försvinner när Firefox startas om och läses då in igen på samma sätt. För permanent installation i vanliga Firefox måste tillägget signeras av Mozilla; det kan göras gratis som olistat tillägg på addons.mozilla.org. Stäng gärna av Firefox egen fråga under **Inställningar → Integritet och säkerhet → Fråga om att spara inloggningar**.
 
-**Spara:** När du loggar in visas en ruta på sidan: **Spara**, **Inte nu** eller **Aldrig för denna webbplats**. Om valvet är låst ber NordVault om huvudlösenordet först. Samma webbplats och användarnamn uppdateras i stället för att dubbleras.
+**Spara:** När du loggar in visas en ruta nere till höger på sidan: **Spara**, **Inte nu** eller **Aldrig för denna webbplats**. Rutan stängs med **✕** och försvinner efter 20 sekunder (som Inte nu), så att den aldrig skymmer till exempel Logga ut. Samma webbplats och användarnamn uppdateras i stället för att dubbleras. Inloggningar i två steg (först användarnamn, sedan lösenord på nästa sida) sparas med båda delarna: tillägget minns användarnamnet från första steget i högst 5 minuter, bara för samma flik och webbplats och bara i minnet.
+
+**Spara när valvet är låst (brevlådan):** Du behöver inte låsa upp valvet för att spara. Inloggningen krypteras direkt av GnuPG till valvets offentliga brevlådenyckel (RSA-3072, AES-256/OCB) och läggs i mappen `inbox` i valvet. Bara valvet kan öppna den. Nästa gång du låser upp visar NordVault de nya inloggningarna och frågar **Ja** (lägg in), **Nej** (ta bort) eller **Avbryt** (fråga nästa gång). Brevlådan skapas första gången du låser upp valvet med 0.4.4; dessförinnan ber NordVault om huvudlösenordet som tidigare.
 
 **Fylla i:** På en inloggningssida med sparad inloggning visas **Fyll i**, och samma lista finns under NordVault-ikonen i verktygsfältet. NordVault visar då en egen ruta där du bekräftar varje ifyllning (Nej är förvalt). Lösenordet skickas bara till huvudsidan med exakt samma ursprung. En https-inloggning erbjuds aldrig till en http-sida; underdomäner till den sparade webbplatsen godtas.
 

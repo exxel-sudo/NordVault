@@ -7,6 +7,7 @@ using System.Security.Principal;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Win32;
+using NordVault.Core;
 
 namespace NordVault.App;
 
@@ -240,5 +241,35 @@ internal sealed class BrowserRateLimit
         while(queue.Count>0&&now-queue.Peek()>TimeSpan.FromMinutes(1))queue.Dequeue();
         if(queue.Count>=PerMinute(type))return false;
         queue.Enqueue(now);return true;
+    }
+}
+
+/// <summary>Saving from Firefox while the vault is locked: encrypted to the vault's inbox key, without unlocking (see LoginInbox).</summary>
+internal static class BrowserInbox
+{
+    // The public key that was checked against the encrypted copy in the vault at the latest unlock in this process.
+    private static (string Root, byte[] Key)? _trusted;
+    public static void Trust(string root, byte[] key) => _trusted = (Path.GetFullPath(root), key);
+
+    /// <summary>Null when the vault has no inbox yet (it is made at the next unlock): the caller then asks to unlock as before.</summary>
+    public static async Task<JsonObject?> TryQueueAsync(JsonObject request)
+    {
+        var root = AppPaths.PreferredVault;
+        if (!File.Exists(Path.Combine(root, "catalog.gpg"))) return null;
+        var key = _trusted is { } trusted && string.Equals(trusted.Root, Path.GetFullPath(root), StringComparison.OrdinalIgnoreCase) ? trusted.Key : LoginInbox.ReadPublicKey(root);
+        if (key is null) return null;
+        var url = request["url"]?.GetValue<string>() ?? "";
+        if (VaultItemMatcher.Parse(url) is not { } page || (page.Scheme != "https" && !VaultItemMatcher.IsLocalHost(page.IdnHost)))
+            return BrowserBridge.Error("NordVault sparar och fyller bara i på krypterade https-sidor.");
+        var username = request["username"]?.GetValue<string>() ?? "";
+        var password = (request["password"]?.GetValue<string>() ?? "").ToCharArray();
+        try
+        {
+            await LoginInbox.AddAsync(root, new GnuPgRuntime(Path.Combine(AppContext.BaseDirectory, "tools", "gnupg")), key, page, username, password);
+            return new() { ["ok"] = true, ["result"] = "queued" };
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
+        { return BrowserBridge.Error("Kunde inte spara i valvets brevlåda: " + error.Message); }
+        finally { Array.Clear(password); }
     }
 }

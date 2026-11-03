@@ -47,20 +47,20 @@ try {
     Copy-Item -LiteralPath scripts\Install-SDelete.ps1 -Destination (Join-Path $portable 'scripts\Install-SDelete.ps1')
     Copy-Item -LiteralPath scripts\Uninstall-NordVault.cmd -Destination (Join-Path $portable 'Avinstallera NordVault.cmd')
     $files=@(Get-ChildItem -LiteralPath $portable -Recurse -File|ForEach-Object{[ordered]@{Path=$_.FullName.Substring($portable.Length+1).Replace('\','/');Size=$_.Length;Sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash}})
-    $manifest=[ordered]@{Product='NordVault.Private.v1';Version='0.4.3';Files=$files}
+    $manifest=[ordered]@{Product='NordVault.Private.v1';Version='0.4.4';Files=$files}
     [IO.File]::WriteAllText((Join-Path $projectPath 'artifacts\setup-manifest.json'),($manifest|ConvertTo-Json -Depth 6),[Text.UTF8Encoding]::new($false))
     Create-Zip $portable (Join-Path $projectPath 'artifacts\setup-payload.zip')
     dotnet restore src\NordVault.Setup\NordVault.Setup.csproj @restore;Check-Exit 'Installationsprogrammets runtimepaket'
     dotnet publish src\NordVault.Setup\NordVault.Setup.csproj @publish --output artifacts\setup;Check-Exit 'Installationsprogram'
-    Copy-Item -LiteralPath artifacts\setup\NordVault.Setup.exe -Destination (Join-Path $projectPath 'release\NordVault-Setup-0.4.3.exe') -Force
-    Copy-Item -LiteralPath artifacts\setup\NordVault.Setup.exe -Destination (Join-Path $projectPath 'Setup-NordVault-0.4.3.exe') -Force
+    Copy-Item -LiteralPath artifacts\setup\NordVault.Setup.exe -Destination (Join-Path $projectPath 'release\NordVault-Setup-0.4.4.exe') -Force
+    Copy-Item -LiteralPath artifacts\setup\NordVault.Setup.exe -Destination (Join-Path $projectPath 'Setup-NordVault-0.4.4.exe') -Force
     Copy-Item -LiteralPath artifacts\setup\NordVault.Setup.exe -Destination (Join-Path $portable 'NordVault.Setup.exe')
-    Create-Zip $portable (Join-Path $projectPath 'release\NordVault-Portable-0.4.3.zip')
+    Create-Zip $portable (Join-Path $projectPath 'release\NordVault-Portable-0.4.4.zip')
     $releaseFolder=Join-Path $projectPath 'release\NordVault-Portable'
     $null=New-Item -ItemType Directory -Path $releaseFolder -Force
     Copy-Item -Path (Join-Path $portable '*') -Destination $releaseFolder -Recurse -Force
-    Get-FileHash release\NordVault-Setup-0.4.3.exe,release\NordVault-Portable-0.4.3.zip -Algorithm SHA256|ForEach-Object{$_.Hash+'  '+[IO.Path]::GetFileName($_.Path)}|Set-Content release\SHA256SUMS.txt -Encoding utf8
-    Get-FileHash Setup-NordVault-0.4.3.exe -Algorithm SHA256|ForEach-Object{$_.Hash+'  '+[IO.Path]::GetFileName($_.Path)}|Set-Content SHA256SUMS.txt -Encoding utf8
+    Get-FileHash release\NordVault-Setup-0.4.4.exe,release\NordVault-Portable-0.4.4.zip -Algorithm SHA256|ForEach-Object{$_.Hash+'  '+[IO.Path]::GetFileName($_.Path)}|Set-Content release\SHA256SUMS.txt -Encoding utf8
+    Get-FileHash Setup-NordVault-0.4.4.exe -Algorithm SHA256|ForEach-Object{$_.Hash+'  '+[IO.Path]::GetFileName($_.Path)}|Set-Content SHA256SUMS.txt -Encoding utf8
     if(-not $SkipTests){dotnet run --project tests\NordVault.PortableTests\NordVault.PortableTests.csproj --configuration Release --no-restore -- --published;Check-Exit 'Tester av publicerad distribution'}
-    Write-Output 'Klart: Setup-NordVault-0.4.3.exe i rotmappen och release\NordVault-Portable-0.4.3.zip. Ingen systeminstallation eller diskåtgärd har körts.'
+    Write-Output 'Klart: Setup-NordVault-0.4.4.exe i rotmappen och release\NordVault-Portable-0.4.4.zip. Ingen systeminstallation eller diskåtgärd har körts.'
 }finally{Pop-Location}

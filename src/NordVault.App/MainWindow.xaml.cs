@@ -214,6 +214,44 @@ public partial class MainWindow : Window
         _passwordTools.ActivityChanged+=message=>ActivityText.Text=message;
         _passwordTools.OpenRequested+=OpenVault;
         _passwordTools.LockRequired+=()=>{if(HasOpenVault&&!AnyBusy)RequestLock();};
+        if(session is not null&&!_demo)_=ProcessInboxAsync(session);
+    }
+
+    /// <summary>Logins Firefox saved while the vault was locked: shown once after unlocking, added only if the user says yes.</summary>
+    private async Task ProcessInboxAsync(VaultSession session)
+    {
+        if(!IsLoaded){RoutedEventHandler? later=null;later=(_,_)=>{Loaded-=later;_=ProcessInboxAsync(session);};Loaded+=later;return;}
+        if(_vaultSession!=session)return;
+        _browserBusy++;UpdateActions();
+        InboxContents? inbox=null;
+        try
+        {
+            var key=await session.PrepareInboxAsync();
+            if(key is null||_vaultSession!=session)return;
+            BrowserInbox.Trust(session.Root,key.PublicKey);
+            if(key.Repaired)MessageBox.Show(this,"Brevlådans nyckel i valvmappen hade bytts ut av något annat än NordVault. Den är nu återställd.\n\nInloggningar som Firefox sparat sedan dess kan inte öppnas. Kontrollera datorn efter skadeprogram.","NordVault · varning om brevlådan",MessageBoxButton.OK,MessageBoxImage.Warning);
+            inbox=await session.ReadInboxAsync();
+            if(_vaultSession!=session||inbox.Logins.Count+inbox.Unreadable.Count==0)return;
+            var broken=inbox.Unreadable.Count>0?$"{inbox.Unreadable.Count} fil{(inbox.Unreadable.Count==1?"":"er")} i brevlådan kunde inte öppnas och tas bort.\n\n":"";
+            if(inbox.Logins.Count==0)
+            {
+                MessageBox.Show(this,broken.TrimEnd(),"NordVault · brevlådan",MessageBoxButton.OK,MessageBoxImage.Warning);
+                session.DiscardInbox(inbox.Unreadable);return;
+            }
+            var lines=string.Join("\n",inbox.Logins.Take(12).Select(l=>"• "+(VaultItemMatcher.Parse(l.Url)?.IdnHost??l.Url)+(l.Username.Length>0?" · "+l.Username:" · (inget användarnamn)")));
+            if(inbox.Logins.Count>12)lines+=$"\n… och {inbox.Logins.Count-12} till";
+            var answer=MessageBox.Show(this,$"Firefox sparade {inbox.Logins.Count} inloggning{(inbox.Logins.Count==1?"":"ar")} krypterat medan valvet var låst:\n\n{lines}\n\n{broken}Ja = lägg in i valvet\nNej = ta bort dem\nAvbryt = fråga nästa gång",
+                "NordVault · nya inloggningar från Firefox",MessageBoxButton.YesNoCancel,MessageBoxImage.Question,MessageBoxResult.Yes);
+            if(_vaultSession!=session||answer==MessageBoxResult.Cancel)return;
+            session.DiscardInbox(inbox.Unreadable);
+            if(answer==MessageBoxResult.No){session.DiscardInbox(inbox.Logins.Select(l=>l.File));ActivityText.Text="Inloggningarna från Firefox togs bort.";return;}
+            var saved=await session.AcceptInboxAsync(inbox.Logins);
+            _passwordTools.Refresh();
+            ActivityText.Text=$"{saved} inloggning{(saved==1?"":"ar")} från Firefox lades in i valvet.";
+        }
+        catch(Exception error)when(error is IOException or UnauthorizedAccessException or InvalidOperationException or ObjectDisposedException or ArgumentException)
+        {ActivityText.Text="Brevlådan kunde inte läsas: "+error.Message;}
+        finally{if(inbox is not null)foreach(var login in inbox.Logins)login.Dispose();_browserBusy--;UpdateActions();}
     }
 
     /// <summary>Requests from the Firefox extension (see BrowserBridge). Runs on the UI thread.</summary>
@@ -249,6 +287,12 @@ public partial class MainWindow : Window
             return new(){["ok"]=true,["logins"]=logins};
         }
         if(type is not ("save" or "fill"))return BrowserBridge.Error("Okänd begäran.");
+        // Locked: a save goes to the vault's inbox without asking for the master password; it is added after the next unlock.
+        if(type=="save"&&!HasOpenVault&&await BrowserInbox.TryQueueAsync(request) is {} queued)
+        {
+            if(queued["ok"]?.GetValue<bool>()==true)ActivityText.Text=$"Inloggningen för {page.IdnHost} sparades krypterat i brevlådan. Den läggs in när valvet låses upp.";
+            return queued;
+        }
         if(!EnsureUnlockedForBrowser())return BrowserBridge.Error("Lås upp valvet i NordVault och försök igen.",true);
         var session=_vaultSession!;
         _browserBusy++;UpdateActions();

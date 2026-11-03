@@ -5,6 +5,7 @@
   if (window.top !== window) return;
   let lastCaptured = "";
   let bar = null;
+  const AUTO_HIDE_MS = 20000;
 
   const visible = (el) => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
   const passwordFields = (root) => [...(root || document).querySelectorAll("input[type=password]")].filter((el) => !el.disabled);
@@ -15,13 +16,24 @@
     const scope = password.form || document;
     const all = usernameCandidates(scope);
     const before = all.filter((el) => el.compareDocumentPosition(password) & Node.DOCUMENT_POSITION_FOLLOWING);
-    const pick = before.reverse().find((el) => el.value.trim()) || all.find((el) => el.value.trim());
+    const pick = before.reverse().find((el) => el.value.trim()) || all.find((el) => el.value.trim())
+      // Two-step logins often keep the name from step one in a hidden field.
+      || [...scope.querySelectorAll("input[autocomplete~=username],input[autocomplete~=email]")].find((el) => !el.disabled && el.value.trim());
     return pick ? pick.value.trim() : "";
+  }
+
+  // Step one of a two-step login (name first, password on the next page): only fields that look like a user name.
+  const looksLikeUsername = (el) => el.type === "email" || /(username|email)/.test(el.autocomplete || "")
+    || /user|e-?mail|e-?post|login|konto|account|identifier|anv/i.test((el.name || "") + " " + (el.id || ""));
+  function rememberUsername(scope) {
+    if (passwordFields(scope).length > 0) return;
+    const field = usernameCandidates(scope).find((el) => el.value.trim() && looksLikeUsername(el) && !el.closest("[role=search],form[role=search]"));
+    if (field) browser.runtime.sendMessage({ type: "username", username: field.value.trim() }).catch(() => {});
   }
 
   function capture(scope) {
     const fields = passwordFields(scope).filter((el) => el.value);
-    if (fields.length === 0) return;
+    if (fields.length === 0) { rememberUsername(scope); return; }
     // Change-password forms: the new password appears twice; otherwise use the first filled field.
     const values = fields.map((f) => f.value);
     const repeated = values.find((v, i) => values.indexOf(v) !== i);
@@ -52,12 +64,14 @@
   function showBar(build) {
     removeBar();
     const host = document.createElement("nordvault-bar");
-    host.style.cssText = "all:initial;position:fixed;top:12px;right:12px;z-index:2147483647;";
+    host.style.cssText = "all:initial;position:fixed;bottom:16px;right:16px;z-index:2147483647;";
     const shadow = host.attachShadow({ mode: "closed" });
     shadow.innerHTML = `<style>
-      .b{font:14px/1.4 "Segoe UI",system-ui,sans-serif;color:#17263E;background:#fff;border:1px solid #D8E0E8;border-left:5px solid #14695B;
+      .b{position:relative;font:14px/1.4 "Segoe UI",system-ui,sans-serif;color:#17263E;background:#fff;border:1px solid #D8E0E8;border-left:5px solid #14695B;
          border-radius:10px;box-shadow:0 8px 28px rgba(22,40,63,.22);padding:14px 16px;max-width:360px;min-width:280px}
-      .t{font-weight:600;margin-bottom:4px}.m{color:#64748B;font-size:13px;margin-bottom:10px;word-break:break-word}
+      .t{font-weight:600;margin-bottom:4px;padding-right:24px}
+      button.x{position:absolute;top:6px;right:6px;border:0;background:none;color:#64748B;font-size:18px;line-height:1;padding:4px 7px}
+      button.x:hover{color:#17263E;background:#EEF2F6}.m{color:#64748B;font-size:13px;margin-bottom:10px;word-break:break-word}
       .r{display:flex;gap:8px;flex-wrap:wrap}
       button{font:600 13px "Segoe UI",system-ui,sans-serif;border-radius:7px;padding:7px 12px;cursor:pointer;border:1px solid #D8E0E8;background:#fff;color:#17263E}
       button.p{background:#14695B;color:#fff;border-color:#14695B}
@@ -67,7 +81,17 @@
     (document.body || document.documentElement).appendChild(host);
     bar = host;
   }
-  function removeBar() { if (bar) { bar.remove(); bar = null; } }
+  let hideTimer = 0;
+  function removeBar() { clearTimeout(hideTimer); if (bar) { bar.remove(); bar = null; } }
+  // Hides itself unless the pointer or keyboard is on it, so it never stays in the way.
+  function autoHide(box, onHide) {
+    const start = () => { clearTimeout(hideTimer); if (!box.dataset.stay) hideTimer = setTimeout(onHide, AUTO_HIDE_MS); };
+    box.addEventListener("mouseenter", () => clearTimeout(hideTimer));
+    box.addEventListener("focusin", () => clearTimeout(hideTimer));
+    box.addEventListener("mouseleave", start);
+    start();
+  }
+  function closeButton(onClick) { const b = button("✕", false, onClick); b.className = "x"; b.title = "Stäng"; b.setAttribute("aria-label", "Stäng"); return b; }
   function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
   function button(text, primary, onClick) {
     const b = el("button", primary ? "p" : "", text);
@@ -75,25 +99,36 @@
     return b;
   }
   function message(box, title, text) {
-    box.replaceChildren(el("div", "t", title), el("div", "m", text));
+    clearTimeout(hideTimer);
+    box.dataset.stay = "1"; // waiting for NordVault or showing a result: the user closes it
+    box.replaceChildren(closeButton(removeBar), el("div", "t", title), el("div", "m", text));
     const row = el("div", "r"); row.append(button("Stäng", false, removeBar)); box.append(row);
   }
 
   function offerSave(info) {
     showBar((box) => {
-      box.append(el("div", "t", "Spara lösenordet i NordVault?"), el("div", "m", info.host + (info.username ? " · " + info.username : "")));
+      const site = info.host || location.hostname;
+      box.append(el("div", "t", "Spara lösenordet i NordVault?"), el("div", "m", site + (info.username ? " · " + info.username : "")));
       const row = el("div", "r");
+      let decided = false;
       const decide = async (decision) => {
-        if (decision === "save") message(box, "Sparar…", "Bekräfta i NordVault om valvet är låst.");
+        if (decided) return;
+        decided = true;
+        clearTimeout(hideTimer);
+        if (decision === "save") message(box, "Sparar…", "Lösenordet krypteras i NordVault.");
         const result = await browser.runtime.sendMessage({ type: "saveDecision", decision }).catch(() => null);
         if (decision !== "save") { removeBar(); return; }
         if (result && result.ok) {
-          message(box, "Sparat i NordVault", result.result === "updated" ? "Lösenordet är uppdaterat." : result.result === "unchanged" ? "Lösenordet fanns redan." : "Inloggningen är sparad krypterat.");
+          message(box, "Sparat i NordVault", result.result === "updated" ? "Lösenordet är uppdaterat." : result.result === "unchanged" ? "Lösenordet fanns redan."
+            : result.result === "queued" ? "Sparat krypterat i valvets brevlåda. Det läggs in i valvet nästa gång du låser upp." : "Inloggningen är sparad krypterat.");
           setTimeout(removeBar, 4000);
         } else message(box, "Inte sparat", (result && result.error) || "NordVault kunde inte nås.");
       };
       row.append(button("Spara", true, () => decide("save")), button("Inte nu", false, () => decide("dismiss")), button("Aldrig för denna webbplats", false, () => decide("never")));
+      // Closing or ignoring it counts as "Inte nu": it does not follow to the next page.
+      box.prepend(closeButton(() => decide("dismiss")));
       box.append(row);
+      autoHide(box, () => decide("dismiss"));
     });
   }
 
@@ -115,7 +150,9 @@
         if (result && result.ok) removeBar();
         else message(box, "Inte ifyllt", (result && result.error) || "NordVault kunde inte nås.");
       }), button("Stäng", false, removeBar));
+      box.prepend(closeButton(removeBar));
       box.append(row);
+      autoHide(box, removeBar);
     });
   }
 

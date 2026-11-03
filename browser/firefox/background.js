@@ -8,6 +8,8 @@ let port = null;
 let nextId = 1;
 const pending = new Map();      // requestId -> {resolve, timer}
 const pendingSaves = new Map(); // tabId -> {origin, host, username, password, time}
+const stepUsernames = new Map(); // tabId -> {host, username, time}: step one of a two-step login, memory only
+const USERNAME_TTL_MS = 5 * 60 * 1000;
 
 function connect() {
   if (port) return port;
@@ -119,10 +121,20 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
   const host = new URL(origin).hostname;
 
   switch (message.type) {
+    case "username": {
+      const username = String(message.username || "").trim().slice(0, 512);
+      if (username) stepUsernames.set(tabId, { host, username, time: Date.now() });
+      return { ok: true };
+    }
     case "captured": {
       if (typeof message.password !== "string" || message.password.length === 0 || message.password.length > 1024) return { ok: false };
       if (await isNever(host)) return { ok: false };
-      pendingSaves.set(tabId, { origin, host, username: String(message.username || "").slice(0, 512), password: message.password, time: Date.now() });
+      // Same tab and exact same site only, at most 5 minutes after step one.
+      const step = stepUsernames.get(tabId);
+      stepUsernames.delete(tabId);
+      let username = String(message.username || "").slice(0, 512);
+      if (!username && step && step.host === host && Date.now() - step.time <= USERNAME_TTL_MS) username = step.username;
+      pendingSaves.set(tabId, { origin, host, username, password: message.password, time: Date.now() });
       // A single-page login stays on the same document: offer right away; after a navigation the new page asks.
       setTimeout(() => {
         const save = takePendingSave(tabId);
@@ -158,4 +170,4 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
   return { ok: false };
 });
 
-browser.tabs.onRemoved.addListener((tabId) => pendingSaves.delete(tabId));
+browser.tabs.onRemoved.addListener((tabId) => { pendingSaves.delete(tabId); stepUsernames.delete(tabId); });

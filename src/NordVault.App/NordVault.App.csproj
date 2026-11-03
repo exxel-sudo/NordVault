@@ -5,7 +5,7 @@
     <UseWPF>true</UseWPF>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>NordVault</AssemblyName>
-    <Version>0.4.3</Version>
+    <Version>0.4.4</Version>
     <ApplicationIcon>../../assets/NordVault.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>

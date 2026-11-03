@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "NordVault",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Sparar och fyller i inloggningar från ditt krypterade NordVault-valv.",
   "browser_specific_settings": {
     "gecko": {

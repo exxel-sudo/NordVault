@@ -57,13 +57,14 @@ public sealed class App : Application
 
 internal static class PackageResources
 {
-    public const string Version="0.4.3";
+    public const string Version="0.4.4";
     public const string LegacySetupHash="EAD9101F9F9BF150191DE827B58AF0433114D5A0EA385203B27F4244110DEEF7";
     public const string Legacy031SetupHash="2B6A18EBD88EF62832BC47A85E316E43AD9B918B77FE33A6644D723540552632";
     public const string Legacy032SetupHash="9B7F169A8A75649EFACD6F7B1D89344243E6EA6A0942849DBE957E4CE21D4092";
     public const string Legacy040SetupHash="56C586210FA23326291CA8756DD7E44ACC16C808557681D18F6D5CBCB6649013";
     public const string Legacy041SetupHash="B1078E359918CCE2E3F326E2F66AD312832ADC5AB1B737FE8DB0072C55BF0591";
-    public const string Legacy042SetupHash="8AFE13D85E2DB604362B87E1DCAB829ADFC26ACA45E7C6C6B267008145D131A6";
+    public const string Legacy042SetupHash="8AFE13D85E2DB604362B87E1DCAB829ADFC26ACA45E7C6C6B267008145D131A6";
+    public const string Legacy043SetupHash="32861FB7BEEF23D36CF9D818768766BA381A3351E77B09C868A3BC982E1BFFDA";
     public static Stream Payload()=>Assembly.GetExecutingAssembly().GetManifestResourceStream("NordVault.Setup.Payload.zip")??throw new IOException("Installationspaketet saknas.");
     public static DeploymentManifest Manifest()=>Read("NordVault.Setup.Manifest.json");
     private static DeploymentManifest Read(string name)
@@ -76,7 +77,8 @@ internal static class PackageResources
         if(state.Version=="0.3.2"&&state.SetupSha256==Legacy032SetupHash)return(Read("NordVault.Setup.Legacy032.json"),Legacy032SetupHash);
         if(state.Version=="0.4.0"&&state.SetupSha256==Legacy040SetupHash)return(Read("NordVault.Setup.Legacy040.json"),Legacy040SetupHash);
         if(state.Version=="0.4.1"&&state.SetupSha256==Legacy041SetupHash)return(Read("NordVault.Setup.Legacy041.json"),Legacy041SetupHash);
-        if(state.Version=="0.4.2"&&state.SetupSha256==Legacy042SetupHash)return(Read("NordVault.Setup.Legacy042.json"),Legacy042SetupHash);
+        if(state.Version=="0.4.2"&&state.SetupSha256==Legacy042SetupHash)return(Read("NordVault.Setup.Legacy042.json"),Legacy042SetupHash);
+        if(state.Version=="0.4.3"&&state.SetupSha256==Legacy043SetupHash)return(Read("NordVault.Setup.Legacy043.json"),Legacy043SetupHash);
         throw new IOException("Den här äldre byggversionen saknar ett verifierat uppdateringsmanifest. Använd dess egen avinstallerare eller välj en ny mapp.");
     }
     public static string FileHash(string path){using var input=File.OpenRead(path);return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(input));}
